@@ -149,8 +149,8 @@ func (pw *Visualizer) drawDefaultUI() {
 	x, y := centerX, centerY
 	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
 
-	pw.w.Fill(image.Rect(x-60, y+140, x+60, y-140), blue, draw.Src)
-	pw.w.Fill(image.Rect(x-150, y, x+150, y-140), blue, draw.Src)
+	pw.w.Fill(image.Rect(x-60, y-140, x+60, y+140), blue, draw.Src)
+	pw.w.Fill(image.Rect(x-150, y+140, x+150, y), blue, draw.Src)
 
 	// Малювання білої рамки.
 	for _, br := range imageutil.Border(pw.sz.Bounds(), 10) {
