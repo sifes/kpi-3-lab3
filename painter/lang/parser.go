@@ -132,7 +132,7 @@ func (p *Parser) parse(commandLine string) error {
 		fig := &painter.Figure{
 			X: int(x * 400),
 			Y: int(y * 400),
-			C: color.RGBA{R: 255, A: 255},
+			C: color.RGBA{B: 255, A: 255},
 		}
 		p.figures = append(p.figures, fig)
 	case "move":
@@ -148,8 +148,8 @@ func (p *Parser) parse(commandLine string) error {
 
 		// Конвертуємо нормалізовані координати у пікселі
 		moveOp := &painter.Move{
-			X: int(x * 400),
-			Y: int(y * 400),
+			X:       int(x * 400),
+			Y:       int(y * 400),
 			Figures: p.figures,
 		}
 		p.moveOps = append(p.moveOps, moveOp)

@@ -68,9 +68,9 @@ type Figure struct {
 func (op *Figure) Do(t screen.Texture) bool {
 	// Малюємо фігуру у вигляді перевернутої літери "Т"
 	// Горизонтальна частина
-	t.Fill(image.Rect(op.X-150, op.Y+140, op.X+150, op.Y), op.C, draw.Src)
+	t.Fill(image.Rect(op.X-75, op.Y, op.X+75, op.Y-70), op.C, draw.Src)
 	// Вертикальна частина
-	t.Fill(image.Rect(op.X-50, op.Y, op.X+50, op.Y+100), op.C, draw.Src)
+	t.Fill(image.Rect(op.X-30, op.Y-70, op.X+30, op.Y+70), op.C, draw.Src)
 	return false
 }
 
