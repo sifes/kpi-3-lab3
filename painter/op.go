@@ -1,9 +1,11 @@
 package painter
 
 import (
+	"image"
 	"image/color"
 
 	"golang.org/x/exp/shiny/screen"
+	"golang.org/x/image/draw"
 )
 
 // Operation змінює вхідну текстуру.
@@ -45,4 +47,48 @@ func WhiteFill(t screen.Texture) {
 // GreenFill зафарбовує тестуру у зелений колір. Може бути викоистана як Operation через OperationFunc(GreenFill).
 func GreenFill(t screen.Texture) {
 	t.Fill(t.Bounds(), color.RGBA{G: 0xff, A: 0xff}, screen.Src)
+}
+
+// BgRectangle малює чорний прямокутник на фоні.
+type BgRectangle struct {
+	X1, Y1, X2, Y2 int
+}
+
+func (op *BgRectangle) Do(t screen.Texture) bool {
+	t.Fill(image.Rect(op.X1, op.Y1, op.X2, op.Y2), color.Black, screen.Src)
+	return false
+}
+
+// Figure малює фігуру з центром у координатах (x, y).
+type Figure struct {
+	X, Y int
+	C    color.RGBA
+}
+
+func (op *Figure) Do(t screen.Texture) bool {
+	// Малюємо фігуру у вигляді перевернутої літери "Т"
+	// Горизонтальна частина
+	t.Fill(image.Rect(op.X-150, op.Y+140, op.X+150, op.Y), op.C, draw.Src)
+	// Вертикальна частина
+	t.Fill(image.Rect(op.X-50, op.Y, op.X+50, op.Y+100), op.C, draw.Src)
+	return false
+}
+
+// Move переміщує всі фігури.
+type Move struct {
+	X, Y    int
+	Figures []*Figure
+}
+
+func (op *Move) Do(t screen.Texture) bool {
+	for i := range op.Figures {
+		op.Figures[i].X += op.X
+		op.Figures[i].Y += op.Y
+	}
+	return false
+}
+
+// ResetScreen очищає поточний стан текстури і заповнює її чорним кольором.
+func ResetScreen(t screen.Texture) {
+	t.Fill(t.Bounds(), color.Black, screen.Src)
 }

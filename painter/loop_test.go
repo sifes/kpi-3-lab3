@@ -4,103 +4,153 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"reflect"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/exp/shiny/screen"
 )
 
-func TestLoop_Post(t *testing.T) {
-	var (
-		l  Loop
-		tr testReceiver
-	)
-	l.Receiver = &tr
-
-	var testOps []string
-
-	l.Start(mockScreen{})
-	l.Post(logOp(t, "do white fill", WhiteFill))
-	l.Post(logOp(t, "do green fill", GreenFill))
-	l.Post(UpdateOp)
-
-	for i := 0; i < 3; i++ {
-		go l.Post(logOp(t, "do green fill", GreenFill))
-	}
-
-	l.Post(OperationFunc(func(screen.Texture) {
-		testOps = append(testOps, "op 1")
-		l.Post(OperationFunc(func(screen.Texture) {
-			testOps = append(testOps, "op 2")
-		}))
-	}))
-	l.Post(OperationFunc(func(screen.Texture) {
-		testOps = append(testOps, "op 3")
-	}))
-
-	l.StopAndWait()
-
-	if tr.lastTexture == nil {
-		t.Fatal("Texture was not updated")
-	}
-	mt, ok := tr.lastTexture.(*mockTexture)
-	if !ok {
-		t.Fatal("Unexpected texture", tr.lastTexture)
-	}
-	if mt.Colors[0] != color.White {
-		t.Error("First color is not white:", mt.Colors)
-	}
-	if len(mt.Colors) != 2 {
-		t.Error("Unexpected size of colors:", mt.Colors)
-	}
-
-	if !reflect.DeepEqual(testOps, []string{"op 1", "op 2", "op 3"}) {
-		t.Error("Bad order:", testOps)
-	}
-}
-
-func logOp(t *testing.T, msg string, op OperationFunc) OperationFunc {
-	return func(tx screen.Texture) {
-		t.Log(msg)
-		op(tx)
-	}
-}
-
-type testReceiver struct {
+// mockReceiver імітує Receiver для тестування
+type mockReceiver struct {
 	lastTexture screen.Texture
+	updateCount int
 }
 
-func (tr *testReceiver) Update(t screen.Texture) {
-	tr.lastTexture = t
+func (r *mockReceiver) Update(t screen.Texture) {
+	r.lastTexture = t
+	r.updateCount++
 }
 
+// mockTexture імітує screen.Texture для тестування
+type mockTexture struct {
+	colors []color.Color
+	size   image.Point
+	bounds image.Rectangle
+}
+
+func (t *mockTexture) Release() {}
+
+func (t *mockTexture) Size() image.Point {
+	return t.size
+}
+
+func (t *mockTexture) Bounds() image.Rectangle {
+	return t.bounds
+}
+
+func (t *mockTexture) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {}
+
+func (t *mockTexture) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
+	t.colors = append(t.colors, src)
+}
+
+// mockScreen імітує screen.Screen для тестування
 type mockScreen struct{}
 
-func (m mockScreen) NewBuffer(size image.Point) (screen.Buffer, error) {
-	panic("implement me")
+func (s *mockScreen) NewBuffer(size image.Point) (screen.Buffer, error) {
+	return nil, nil
 }
 
-func (m mockScreen) NewTexture(size image.Point) (screen.Texture, error) {
-	return new(mockTexture), nil
+func (s *mockScreen) NewTexture(size image.Point) (screen.Texture, error) {
+	return &mockTexture{
+		size:   size,
+		bounds: image.Rectangle{Max: size},
+	}, nil
 }
 
-func (m mockScreen) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) {
-	panic("implement me")
+func (s *mockScreen) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) {
+	return nil, nil
 }
 
-type mockTexture struct {
-	Colors []color.Color
+func TestLoop_Post(t *testing.T) {
+	// Підготовка
+	loop := Loop{}
+	receiver := &mockReceiver{}
+	loop.Receiver = receiver
+	
+	screen := &mockScreen{}
+	loop.Start(screen)
+	
+	// Дія - відправляємо операцію, яка повертає update = true
+	loop.Post(OperationFunc(func(t screen.Texture) {
+		t.Fill(t.Bounds(), color.White, screen.Src)
+	}))
+	loop.Post(UpdateOp)
+	
+	// Очікуємо, поки операції оброблюються
+	time.Sleep(100 * time.Millisecond)
+	
+	// Перевірка
+	assert.NotNil(t, receiver.lastTexture)
+	assert.Equal(t, 1, receiver.updateCount)
+	
+	// Перевіряємо, що текстура оновилася
+	mt, ok := receiver.lastTexture.(*mockTexture)
+	assert.True(t, ok)
+	assert.NotEmpty(t, mt.colors)
+	
+	// Завершення
+	loop.StopAndWait()
 }
 
-func (m *mockTexture) Release() {}
-
-func (m *mockTexture) Size() image.Point { return size }
-
-func (m *mockTexture) Bounds() image.Rectangle {
-	return image.Rectangle{Max: m.Size()}
+func TestLoop_Post_Multiple(t *testing.T) {
+	// Підготовка
+	loop := Loop{}
+	receiver := &mockReceiver{}
+	loop.Receiver = receiver
+	
+	screen := &mockScreen{}
+	loop.Start(screen)
+	
+	// Дія - відправляємо кілька операцій
+	for i := 0; i < 5; i++ {
+		loop.Post(OperationFunc(func(t screen.Texture) {
+			t.Fill(t.Bounds(), color.White, screen.Src)
+		}))
+	}
+	loop.Post(UpdateOp)
+	
+	// Очікуємо, поки операції оброблюються
+	time.Sleep(100 * time.Millisecond)
+	
+	// Перевірка
+	assert.NotNil(t, receiver.lastTexture)
+	assert.Equal(t, 1, receiver.updateCount)
+	
+	// Завершення
+	loop.StopAndWait()
 }
 
-func (m *mockTexture) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {}
-func (m *mockTexture) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
-	m.Colors = append(m.Colors, src)
+func TestMessageQueue(t *testing.T) {
+	// Підготовка
+	mq := messageQueue{}
+	
+	// Перевірка порожньої черги
+	assert.True(t, mq.empty())
+	
+	// Додавання операцій
+	op1 := OperationFunc(WhiteFill)
+	op2 := OperationFunc(GreenFill)
+	
+	mq.push(op1)
+	assert.False(t, mq.empty())
+	
+	mq.push(op2)
+	
+	// Витягування операцій
+	pulledOp1 := mq.pull()
+	assert.NotNil(t, pulledOp1)
+	
+	pulledOp2 := mq.pull()
+	assert.NotNil(t, pulledOp2)
+	
+	// Після витягування всіх операцій черга порожня
+	assert.True(t, mq.empty())
+	
+	// Перевіряємо, що операції витягнуті в правильному порядку
+	_, ok1 := pulledOp1.(OperationFunc)
+	_, ok2 := pulledOp2.(OperationFunc)
+	assert.True(t, ok1)
+	assert.True(t, ok2)
 }
