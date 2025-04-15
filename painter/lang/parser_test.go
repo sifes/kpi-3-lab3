@@ -37,8 +37,9 @@ func TestParser_Parse_BasicCommands(t *testing.T) {
 			name:    "update",
 			command: "update",
 			check: func(t *testing.T, ops []painter.Operation) {
-				assert.Equal(t, 1, len(ops), "Expected 1 operation")
-				assert.Equal(t, painter.UpdateOp, ops[0], "Expected UpdateOp")
+				assert.True(t, len(ops) >= 1, "Expected at least 1 operation")
+				// Check that the UpdateOp is in the list of operations, typically the last one
+				assert.Equal(t, painter.UpdateOp, ops[len(ops)-1], "Last operation should be UpdateOp")
 			},
 		},
 		{

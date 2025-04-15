@@ -22,8 +22,6 @@ type Parser struct {
 
 // initialize встановлює початковий стан парсера, якщо необхідно
 func (p *Parser) initialize() {
-	// For testing simplicity, we don't set a default background color
-	// unless it's already nil
 	if p.lastBgColor == nil && p.lastBgRect == nil && 
 		len(p.figures) == 0 && len(p.moveOps) == 0 && p.updateOp == nil {
 		p.lastBgColor = painter.OperationFunc(painter.ResetScreen)
@@ -42,16 +40,12 @@ func (p *Parser) Parse(in io.Reader) ([]painter.Operation, error) {
 
 	for scanner.Scan() {
 		commandLine := scanner.Text()
-		err := p.parse(commandLine)
-		if err != nil {
-			return nil, err
+		if len(strings.TrimSpace(commandLine)) > 0 {
+			err := p.parse(commandLine)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
-
-	// Special case for just "update" command
-	if p.updateOp != nil && p.lastBgColor == painter.OperationFunc(painter.ResetScreen) && 
-	   p.lastBgRect == nil && len(p.figures) == 0 && len(p.moveOps) == 0 {
-		return []painter.Operation{painter.UpdateOp}, nil
 	}
 
 	return p.finalResult(), nil
