@@ -57,7 +57,7 @@ func TestParser_Parse_BasicCommands(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			parser := &Parser{}
 			ops, err := parser.Parse(strings.NewReader(tc.command))
-			
+
 			assert.NoError(t, err)
 			tc.check(t, ops)
 		})
@@ -75,11 +75,11 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 			command: "bgrect 0.1 0.1 0.9 0.9",
 			check: func(t *testing.T, ops []painter.Operation) {
 				assert.Equal(t, 2, len(ops), "Expected 2 operations")
-				
+
 				// First op is the background color (ResetScreen)
 				_, ok := ops[0].(painter.OperationFunc)
 				assert.True(t, ok, "First op should be OperationFunc")
-				
+
 				// Second op is the background rectangle
 				bgRect, ok := ops[1].(*painter.BgRectangle)
 				assert.True(t, ok, "Second op should be BgRectangle")
@@ -96,18 +96,18 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 			command: "figure 0.5 0.5",
 			check: func(t *testing.T, ops []painter.Operation) {
 				assert.Equal(t, 2, len(ops), "Expected 2 operations")
-				
+
 				// First op is the background color (ResetScreen)
 				_, ok := ops[0].(painter.OperationFunc)
 				assert.True(t, ok, "First op should be OperationFunc")
-				
+
 				// Second op is the figure
 				figure, ok := ops[1].(*painter.Figure)
 				assert.True(t, ok, "Second op should be Figure")
 				if ok {
 					assert.Equal(t, 200, figure.X)
 					assert.Equal(t, 200, figure.Y)
-					assert.Equal(t, color.RGBA{R: 255, A: 255}, figure.C)
+					assert.Equal(t, color.RGBA{B: 255, A: 255}, figure.C)
 				}
 			},
 		},
@@ -116,11 +116,11 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 			command: "move 0.1 0.1\nfigure 0.5 0.5", // Need a figure to move
 			check: func(t *testing.T, ops []painter.Operation) {
 				assert.GreaterOrEqual(t, len(ops), 3, "Expected at least 3 operations")
-				
+
 				// First op is the background color (ResetScreen)
 				_, ok := ops[0].(painter.OperationFunc)
 				assert.True(t, ok, "First op should be OperationFunc")
-				
+
 				// Look for the Move operation
 				foundMove := false
 				for _, op := range ops {
@@ -140,7 +140,7 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			parser := &Parser{}
 			ops, err := parser.Parse(strings.NewReader(tc.command))
-			
+
 			assert.NoError(t, err)
 			tc.check(t, ops)
 		})
@@ -158,10 +158,10 @@ update
 `
 	parser := &Parser{}
 	ops, err := parser.Parse(strings.NewReader(script))
-	
+
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, len(ops), 5)
-	
+
 	// Перевіряємо, що останній є UpdateOp
 	assert.Equal(t, painter.UpdateOp, ops[len(ops)-1])
 }
@@ -193,7 +193,7 @@ func TestParser_Parse_InvalidCommands(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			parser := &Parser{}
 			_, err := parser.Parse(strings.NewReader(tc.command))
-			
+
 			assert.Error(t, err)
 		})
 	}

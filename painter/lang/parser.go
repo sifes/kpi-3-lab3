@@ -22,11 +22,11 @@ type Parser struct {
 
 // initialize встановлює початковий стан парсера, якщо необхідно
 func (p *Parser) initialize() {
-	if p.lastBgColor == nil && p.lastBgRect == nil && 
+	if p.lastBgColor == nil && p.lastBgRect == nil &&
 		len(p.figures) == 0 && len(p.moveOps) == 0 && p.updateOp == nil {
 		p.lastBgColor = painter.OperationFunc(painter.ResetScreen)
 	}
-	
+
 	if p.updateOp != nil {
 		p.updateOp = nil
 	}
@@ -137,7 +137,7 @@ func (p *Parser) parse(commandLine string) error {
 		fig := &painter.Figure{
 			X: int(x * 400),
 			Y: int(y * 400),
-			C: color.RGBA{R: 255, A: 255},
+			C: color.RGBA{B: 255, A: 255},
 		}
 		p.figures = append(p.figures, fig)
 	case "move":
@@ -153,8 +153,8 @@ func (p *Parser) parse(commandLine string) error {
 
 		// Конвертуємо нормалізовані координати у пікселі
 		moveOp := &painter.Move{
-			X: int(x * 400),
-			Y: int(y * 400),
+			X:       int(x * 400),
+			Y:       int(y * 400),
 			Figures: p.figures,
 		}
 		p.moveOps = append(p.moveOps, moveOp)
