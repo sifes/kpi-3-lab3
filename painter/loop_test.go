@@ -66,10 +66,10 @@ func TestLoop_Post(t *testing.T) {
 	l.Post(OperationFunc(WhiteFill))
 	l.Post(OperationFunc(GreenFill))
 	l.Post(UpdateOp)
-	
+
 	// Очікуємо, поки операції оброблюються
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Перевірка
 	if tr.lastTexture == nil {
 		t.Fatal("Texture was not updated")
@@ -81,7 +81,7 @@ func TestLoop_Post(t *testing.T) {
 	if len(mt.Colors) != 2 {
 		t.Error("Unexpected number of colors:", mt.Colors)
 	}
-	
+
 	// Завершення
 	l.StopAndWait()
 }
@@ -94,33 +94,33 @@ func TestLoop_Post_Multiple(t *testing.T) {
 	l.Receiver = &tr
 
 	l.Start(mockScreen{})
-	
+
 	// Create a separate channel to track execution order
 	done := make(chan struct{})
 	executed := make([]string, 0, 3)
-	
+
 	l.Post(OperationFunc(func(tx screen.Texture) {
 		executed = append(executed, "op 1")
 	}))
-	
+
 	l.Post(OperationFunc(func(tx screen.Texture) {
 		executed = append(executed, "op 2")
 	}))
-	
+
 	l.Post(OperationFunc(func(tx screen.Texture) {
 		executed = append(executed, "op 3")
 		close(done)
 	}))
-	
+
 	// Wait for all operations to complete
 	<-done
-	
+
 	// Check operations were executed in the right order
 	expectedOrder := []string{"op 1", "op 2", "op 3"}
 	if !reflect.DeepEqual(executed, expectedOrder) {
 		t.Errorf("Expected execution order %v, got %v", expectedOrder, executed)
 	}
-	
+
 	// Завершення
 	l.StopAndWait()
 }
@@ -128,29 +128,29 @@ func TestLoop_Post_Multiple(t *testing.T) {
 func TestMessageQueue(t *testing.T) {
 	// Підготовка
 	mq := messageQueue{}
-	
+
 	// Перевірка порожньої черги
 	assert.True(t, mq.empty())
-	
+
 	// Додавання операцій
 	op1 := OperationFunc(WhiteFill)
 	op2 := OperationFunc(GreenFill)
-	
+
 	mq.push(op1)
 	assert.False(t, mq.empty())
-	
+
 	mq.push(op2)
-	
+
 	// Витягування операцій
 	pulledOp1 := mq.pull()
 	assert.NotNil(t, pulledOp1)
-	
+
 	pulledOp2 := mq.pull()
 	assert.NotNil(t, pulledOp2)
-	
+
 	// Після витягування всіх операцій черга порожня
 	assert.True(t, mq.empty())
-	
+
 	// Перевіряємо, що операції витягнуті в правильному порядку
 	_, ok1 := pulledOp1.(OperationFunc)
 	_, ok2 := pulledOp2.(OperationFunc)
