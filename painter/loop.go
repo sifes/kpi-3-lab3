@@ -32,6 +32,8 @@ func (l *Loop) Start(s screen.Screen) {
   l.next, _ = s.NewTexture(size)
   l.prev, _ = s.NewTexture(size)
 
+  l.Mq = MessageQueue{}
+
   l.stop = make(chan struct{})
   l.stopReq = false
 
