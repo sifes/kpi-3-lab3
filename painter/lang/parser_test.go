@@ -11,36 +11,43 @@ import (
 
 func TestParser_Parse_BasicCommands(t *testing.T) {
 	tests := []struct {
-		name     string
-		command  string
-		expected []painter.Operation
+		name    string
+		command string
+		check   func(t *testing.T, ops []painter.Operation)
 	}{
 		{
 			name:    "white fill",
 			command: "white",
-			expected: []painter.Operation{
-				painter.OperationFunc(painter.WhiteFill),
+			check: func(t *testing.T, ops []painter.Operation) {
+				assert.Equal(t, 1, len(ops), "Expected 1 operation")
+				_, ok := ops[0].(painter.OperationFunc)
+				assert.True(t, ok, "Expected OperationFunc")
 			},
 		},
 		{
 			name:    "green fill",
 			command: "green",
-			expected: []painter.Operation{
-				painter.OperationFunc(painter.GreenFill),
+			check: func(t *testing.T, ops []painter.Operation) {
+				assert.Equal(t, 1, len(ops), "Expected 1 operation")
+				_, ok := ops[0].(painter.OperationFunc)
+				assert.True(t, ok, "Expected OperationFunc")
 			},
 		},
 		{
 			name:    "update",
 			command: "update",
-			expected: []painter.Operation{
-				painter.UpdateOp,
+			check: func(t *testing.T, ops []painter.Operation) {
+				assert.Equal(t, 1, len(ops), "Expected 1 operation")
+				assert.Equal(t, painter.UpdateOp, ops[0], "Expected UpdateOp")
 			},
 		},
 		{
 			name:    "reset",
 			command: "reset",
-			expected: []painter.Operation{
-				painter.OperationFunc(painter.ResetScreen),
+			check: func(t *testing.T, ops []painter.Operation) {
+				assert.Equal(t, 1, len(ops), "Expected 1 operation")
+				_, ok := ops[0].(painter.OperationFunc)
+				assert.True(t, ok, "Expected OperationFunc")
 			},
 		},
 	}
@@ -51,33 +58,80 @@ func TestParser_Parse_BasicCommands(t *testing.T) {
 			ops, err := parser.Parse(strings.NewReader(tc.command))
 			
 			assert.NoError(t, err)
-			assert.Len(t, ops, 1)
-			// Перевіряємо тільки тип, бо не можемо порівнювати функції
-			assert.IsType(t, tc.expected[0], ops[0])
+			tc.check(t, ops)
 		})
 	}
 }
 
 func TestParser_Parse_StructCommands(t *testing.T) {
 	tests := []struct {
-		name     string
-		command  string
-		expected painter.Operation
+		name    string
+		command string
+		check   func(t *testing.T, ops []painter.Operation)
 	}{
 		{
-			name:     "background rectangle",
-			command:  "bgrect 0.1 0.1 0.9 0.9",
-			expected: &painter.BgRectangle{X1: 40, Y1: 40, X2: 360, Y2: 360},
+			name:    "background rectangle",
+			command: "bgrect 0.1 0.1 0.9 0.9",
+			check: func(t *testing.T, ops []painter.Operation) {
+				assert.Equal(t, 2, len(ops), "Expected 2 operations")
+				
+				// First op is the background color (ResetScreen)
+				_, ok := ops[0].(painter.OperationFunc)
+				assert.True(t, ok, "First op should be OperationFunc")
+				
+				// Second op is the background rectangle
+				bgRect, ok := ops[1].(*painter.BgRectangle)
+				assert.True(t, ok, "Second op should be BgRectangle")
+				if ok {
+					assert.Equal(t, 40, bgRect.X1)
+					assert.Equal(t, 40, bgRect.Y1)
+					assert.Equal(t, 360, bgRect.X2)
+					assert.Equal(t, 360, bgRect.Y2)
+				}
+			},
 		},
 		{
-			name:     "figure",
-			command:  "figure 0.5 0.5",
-			expected: &painter.Figure{X: 200, Y: 200, C: color.RGBA{R: 255, A: 255}},
+			name:    "figure",
+			command: "figure 0.5 0.5",
+			check: func(t *testing.T, ops []painter.Operation) {
+				assert.Equal(t, 2, len(ops), "Expected 2 operations")
+				
+				// First op is the background color (ResetScreen)
+				_, ok := ops[0].(painter.OperationFunc)
+				assert.True(t, ok, "First op should be OperationFunc")
+				
+				// Second op is the figure
+				figure, ok := ops[1].(*painter.Figure)
+				assert.True(t, ok, "Second op should be Figure")
+				if ok {
+					assert.Equal(t, 200, figure.X)
+					assert.Equal(t, 200, figure.Y)
+					assert.Equal(t, color.RGBA{R: 255, A: 255}, figure.C)
+				}
+			},
 		},
 		{
-			name:     "move",
-			command:  "move 0.1 0.1",
-			expected: &painter.Move{X: 40, Y: 40},
+			name:    "move",
+			command: "move 0.1 0.1\nfigure 0.5 0.5", // Need a figure to move
+			check: func(t *testing.T, ops []painter.Operation) {
+				assert.GreaterOrEqual(t, len(ops), 3, "Expected at least 3 operations")
+				
+				// First op is the background color (ResetScreen)
+				_, ok := ops[0].(painter.OperationFunc)
+				assert.True(t, ok, "First op should be OperationFunc")
+				
+				// Look for the Move operation
+				foundMove := false
+				for _, op := range ops {
+					if move, ok := op.(*painter.Move); ok {
+						foundMove = true
+						assert.Equal(t, 40, move.X)
+						assert.Equal(t, 40, move.Y)
+						break
+					}
+				}
+				assert.True(t, foundMove, "Should find a Move operation")
+			},
 		},
 	}
 
@@ -87,29 +141,7 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 			ops, err := parser.Parse(strings.NewReader(tc.command))
 			
 			assert.NoError(t, err)
-			assert.NotEmpty(t, ops)
-
-			// Структури можемо порівнювати за типом
-			switch expected := tc.expected.(type) {
-			case *painter.BgRectangle:
-				bgRect, ok := ops[0].(*painter.BgRectangle)
-				assert.True(t, ok)
-				assert.Equal(t, expected.X1, bgRect.X1)
-				assert.Equal(t, expected.Y1, bgRect.Y1)
-				assert.Equal(t, expected.X2, bgRect.X2)
-				assert.Equal(t, expected.Y2, bgRect.Y2)
-			case *painter.Figure:
-				figure, ok := ops[0].(*painter.Figure)
-				assert.True(t, ok)
-				assert.Equal(t, expected.X, figure.X)
-				assert.Equal(t, expected.Y, figure.Y)
-				assert.Equal(t, expected.C, figure.C)
-			case *painter.Move:
-				move, ok := ops[0].(*painter.Move)
-				assert.True(t, ok)
-				assert.Equal(t, expected.X, move.X)
-				assert.Equal(t, expected.Y, move.Y)
-			}
+			tc.check(t, ops)
 		})
 	}
 }

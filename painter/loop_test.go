@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"reflect"
 	"testing"
 	"time"
 
@@ -11,115 +12,117 @@ import (
 	"golang.org/x/exp/shiny/screen"
 )
 
-// mockReceiver імітує Receiver для тестування
-type mockReceiver struct {
+// testReceiver імітує Receiver для тестування
+type testReceiver struct {
 	lastTexture screen.Texture
-	updateCount int
 }
 
-func (r *mockReceiver) Update(t screen.Texture) {
-	r.lastTexture = t
-	r.updateCount++
+func (tr *testReceiver) Update(t screen.Texture) {
+	tr.lastTexture = t
 }
 
 // mockTexture імітує screen.Texture для тестування
 type mockTexture struct {
-	colors []color.Color
-	size   image.Point
-	bounds image.Rectangle
+	Colors []color.Color
 }
 
-func (t *mockTexture) Release() {}
+func (m *mockTexture) Release() {}
 
-func (t *mockTexture) Size() image.Point {
-	return t.size
+func (m *mockTexture) Size() image.Point { return size }
+
+func (m *mockTexture) Bounds() image.Rectangle {
+	return image.Rectangle{Max: m.Size()}
 }
 
-func (t *mockTexture) Bounds() image.Rectangle {
-	return t.bounds
-}
+func (m *mockTexture) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {}
 
-func (t *mockTexture) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {}
-
-func (t *mockTexture) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
-	t.colors = append(t.colors, src)
+func (m *mockTexture) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
+	m.Colors = append(m.Colors, src)
 }
 
 // mockScreen імітує screen.Screen для тестування
 type mockScreen struct{}
 
-func (s *mockScreen) NewBuffer(size image.Point) (screen.Buffer, error) {
-	return nil, nil
+func (m mockScreen) NewBuffer(size image.Point) (screen.Buffer, error) {
+	panic("implement me")
 }
 
-func (s *mockScreen) NewTexture(size image.Point) (screen.Texture, error) {
-	return &mockTexture{
-		size:   size,
-		bounds: image.Rectangle{Max: size},
-	}, nil
+func (m mockScreen) NewTexture(size image.Point) (screen.Texture, error) {
+	return new(mockTexture), nil
 }
 
-func (s *mockScreen) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) {
-	return nil, nil
+func (m mockScreen) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) {
+	panic("implement me")
 }
 
 func TestLoop_Post(t *testing.T) {
-	// Підготовка
-	loop := Loop{}
-	receiver := &mockReceiver{}
-	loop.Receiver = receiver
-	
-	screen := &mockScreen{}
-	loop.Start(screen)
-	
-	// Дія - відправляємо операцію, яка повертає update = true
-	loop.Post(OperationFunc(func(t screen.Texture) {
-		t.Fill(t.Bounds(), color.White, screen.Src)
-	}))
-	loop.Post(UpdateOp)
+	var (
+		l  Loop
+		tr testReceiver
+	)
+	l.Receiver = &tr
+
+	l.Start(mockScreen{})
+	l.Post(OperationFunc(WhiteFill))
+	l.Post(OperationFunc(GreenFill))
+	l.Post(UpdateOp)
 	
 	// Очікуємо, поки операції оброблюються
 	time.Sleep(100 * time.Millisecond)
 	
 	// Перевірка
-	assert.NotNil(t, receiver.lastTexture)
-	assert.Equal(t, 1, receiver.updateCount)
-	
-	// Перевіряємо, що текстура оновилася
-	mt, ok := receiver.lastTexture.(*mockTexture)
-	assert.True(t, ok)
-	assert.NotEmpty(t, mt.colors)
+	if tr.lastTexture == nil {
+		t.Fatal("Texture was not updated")
+	}
+	mt, ok := tr.lastTexture.(*mockTexture)
+	if !ok {
+		t.Fatal("Unexpected texture type:", tr.lastTexture)
+	}
+	if len(mt.Colors) != 2 {
+		t.Error("Unexpected number of colors:", mt.Colors)
+	}
 	
 	// Завершення
-	loop.StopAndWait()
+	l.StopAndWait()
 }
 
 func TestLoop_Post_Multiple(t *testing.T) {
-	// Підготовка
-	loop := Loop{}
-	receiver := &mockReceiver{}
-	loop.Receiver = receiver
+	var (
+		l  Loop
+		tr testReceiver
+	)
+	l.Receiver = &tr
+
+	l.Start(mockScreen{})
 	
-	screen := &mockScreen{}
-	loop.Start(screen)
+	// Create a separate channel to track execution order
+	done := make(chan struct{})
+	executed := make([]string, 0, 3)
 	
-	// Дія - відправляємо кілька операцій
-	for i := 0; i < 5; i++ {
-		loop.Post(OperationFunc(func(t screen.Texture) {
-			t.Fill(t.Bounds(), color.White, screen.Src)
-		}))
+	l.Post(OperationFunc(func(tx screen.Texture) {
+		executed = append(executed, "op 1")
+	}))
+	
+	l.Post(OperationFunc(func(tx screen.Texture) {
+		executed = append(executed, "op 2")
+	}))
+	
+	l.Post(OperationFunc(func(tx screen.Texture) {
+		executed = append(executed, "op 3")
+		close(done)
+	}))
+	
+	// Wait for all operations to complete
+	<-done
+	
+	// Check operations were executed in the right order
+	expectedOrder := []string{"op 1", "op 2", "op 3"}
+	if !reflect.DeepEqual(executed, expectedOrder) {
+		t.Errorf("Expected execution order %v, got %v", expectedOrder, executed)
 	}
-	loop.Post(UpdateOp)
-	
-	// Очікуємо, поки операції оброблюються
-	time.Sleep(100 * time.Millisecond)
-	
-	// Перевірка
-	assert.NotNil(t, receiver.lastTexture)
-	assert.Equal(t, 1, receiver.updateCount)
 	
 	// Завершення
-	loop.StopAndWait()
+	l.StopAndWait()
 }
 
 func TestMessageQueue(t *testing.T) {

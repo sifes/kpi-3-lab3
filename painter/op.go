@@ -41,12 +41,12 @@ func (f OperationFunc) Do(t screen.Texture) bool {
 
 // WhiteFill зафарбовує тестуру у білий колір. Може бути викоистана як Operation через OperationFunc(WhiteFill).
 func WhiteFill(t screen.Texture) {
-	t.Fill(t.Bounds(), color.White, screen.Src)
+	t.Fill(t.Bounds(), color.White, draw.Src)
 }
 
 // GreenFill зафарбовує тестуру у зелений колір. Може бути викоистана як Operation через OperationFunc(GreenFill).
 func GreenFill(t screen.Texture) {
-	t.Fill(t.Bounds(), color.RGBA{G: 0xff, A: 0xff}, screen.Src)
+	t.Fill(t.Bounds(), color.RGBA{G: 0xff, A: 0xff}, draw.Src)
 }
 
 // BgRectangle малює чорний прямокутник на фоні.
@@ -55,7 +55,7 @@ type BgRectangle struct {
 }
 
 func (op *BgRectangle) Do(t screen.Texture) bool {
-	t.Fill(image.Rect(op.X1, op.Y1, op.X2, op.Y2), color.Black, screen.Src)
+	t.Fill(image.Rect(op.X1, op.Y1, op.X2, op.Y2), color.Black, draw.Src)
 	return false
 }
 
@@ -68,9 +68,9 @@ type Figure struct {
 func (op *Figure) Do(t screen.Texture) bool {
 	// Малюємо фігуру у вигляді перевернутої літери "Т"
 	// Горизонтальна частина
-	t.Fill(image.Rect(op.X-75, op.Y, op.X+75, op.Y-70), op.C, draw.Src)
+	t.Fill(image.Rect(op.X-150, op.Y+140, op.X+150, op.Y), op.C, draw.Src)
 	// Вертикальна частина
-	t.Fill(image.Rect(op.X-30, op.Y-70, op.X+30, op.Y+70), op.C, draw.Src)
+	t.Fill(image.Rect(op.X-50, op.Y, op.X+50, op.Y+100), op.C, draw.Src)
 	return false
 }
 
@@ -90,5 +90,5 @@ func (op *Move) Do(t screen.Texture) bool {
 
 // ResetScreen очищає поточний стан текстури і заповнює її чорним кольором.
 func ResetScreen(t screen.Texture) {
-	t.Fill(t.Bounds(), color.Black, screen.Src)
+	t.Fill(t.Bounds(), color.Black, draw.Src)
 }

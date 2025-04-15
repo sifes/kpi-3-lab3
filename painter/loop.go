@@ -43,6 +43,10 @@ func (l *Loop) Start(s screen.Screen) {
 func (l *Loop) eventLoop() {
 	for !l.stopReq {
 		op := l.mq.pull()
+		if op == nil {
+			continue
+		}
+		
 		if update := op.Do(l.next); update {
 			l.Receiver.Update(l.next)
 			l.next, l.prev = l.prev, l.next
