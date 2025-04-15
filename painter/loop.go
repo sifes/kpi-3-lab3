@@ -64,30 +64,30 @@ func (l *Loop) StopAndWait() {
 
 // MessageQueue — експортована структура черги повідомлень
 type MessageQueue struct {
-    Queue   []Operation
-    Mu      sync.Mutex
-    Blocked chan struct{}
+    queue   []Operation
+    mu      sync.Mutex
+    blocked chan struct{}
 }
 
 func (mq *MessageQueue) push(op Operation) {
-    mq.Mu.Lock()
-    defer mq.Mu.Unlock()
+    mq.mu.Lock()
+    defer mq.mu.Unlock()
     mq.queue = append(mq.queue, op)
-    if mq.Blocked != nil {
+    if mq.blocked != nil {
         close(mq.blocked)
         mq.blocked = nil
     }
 }
 
 func (mq *MessageQueue) pull() Operation {
-    mq.Mu.Lock()
-    defer mq.Mu.Unlock()
+    mq.mu.Lock()
+    defer mq.mu.Unlock()
 
-    for len(mq.Queue) == 0 {
+    for len(mq.queue) == 0 {
         mq.blocked = make(chan struct{})
-        mq.Mu.Unlock()
+        mq.mu.Unlock()
         <-mq.blocked
-        mq.Mu.Lock()
+        mq.mu.Lock()
     }
 
     op := mq.queue[0]
@@ -96,7 +96,7 @@ func (mq *MessageQueue) pull() Operation {
 }
 
 func (mq *MessageQueue) empty() bool {
-    mq.Mu.Lock()
-    defer mq.Mu.Unlock()
+    mq.mu.Lock()
+    defer mq.mu.Unlock()
     return len(mq.queue) == 0
 }
