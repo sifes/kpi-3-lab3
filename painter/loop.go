@@ -3,6 +3,7 @@ package painter
 import (
 	"image"
 	"sync"
+	"time"
 
 	"golang.org/x/exp/shiny/screen"
 )
@@ -31,7 +32,6 @@ var size = image.Pt(800, 800)
 func (l *Loop) Start(s screen.Screen) {
 	l.next, _ = s.NewTexture(size)
 	l.prev, _ = s.NewTexture(size)
-
 	l.MsgQueue = messageQueue{}
 	l.stopped = make(chan struct{})
 	
@@ -50,6 +50,7 @@ func (l *Loop) eventProcess() {
 		}
 		
 		if l.stopReq {
+			// Clean up resources before stopping
 			close(l.stopped)
 			return
 		}
@@ -63,12 +64,50 @@ func (l *Loop) Post(op Operation) {
 	}
 }
 
+// PostWithTimeout adds an operation with a timeout and returns whether the operation was accepted
+func (l *Loop) PostWithTimeout(op Operation, timeout time.Duration) bool {
+	if op == nil {
+		return false
+	}
+	
+	// Use a channel to signal when the operation is pushed
+	done := make(chan struct{})
+	
+	go func() {
+		l.MsgQueue.Push(op)
+		close(done)
+	}()
+	
+	// Wait for the operation to be pushed or timeout
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
+}
+
 // StopAndWait сигналізує про необхідність завершити цикл та блокується до моменту його повної зупинки.
 func (l *Loop) StopAndWait() {
 	l.Post(OperationFunc(func(screen.Texture) {
 		l.stopReq = true
 	}))
 	<-l.stopped
+	
+	// Clean up textures
+	if l.next != nil {
+		l.next.Release()
+		l.next = nil
+	}
+	
+	if l.prev != nil {
+		l.prev.Release()
+		l.prev = nil
+	}
+}
+
+func (l *Loop) Size() int {
+	return l.MsgQueue.Size()
 }
 
 // messageQueue реалізує чергу повідомлень з блокуванням
@@ -106,4 +145,16 @@ func (MsgQueue *messageQueue) Pull() Operation {
 	MsgQueue.Queue[0] = nil
 	MsgQueue.Queue = MsgQueue.Queue[1:]
 	return op
+}
+
+func (MsgQueue *messageQueue) Size() int {
+	MsgQueue.mu.Lock()
+	defer MsgQueue.mu.Unlock()
+	return len(MsgQueue.Queue)
+}
+
+func (MsgQueue *messageQueue) Clear() {
+	MsgQueue.mu.Lock()
+	defer MsgQueue.mu.Unlock()
+	MsgQueue.Queue = nil
 }
