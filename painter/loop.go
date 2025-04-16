@@ -19,45 +19,48 @@ type Loop struct {
 	next screen.Texture // текстура, яка зараз формується
 	prev screen.Texture // текстура, яка була відправлення останнього разу у Receiver
 
-	mq messageQueue
-
-	stop    chan struct{}
 	stopReq bool
+	stopped chan struct{}
+
+	MsgQueue messageQueue
 }
 
-var size = image.Pt(400, 400)
+var size = image.Pt(800, 800)
 
 // Start запускає цикл подій. Цей метод потрібно запустити до того, як викликати на ньому будь-які інші методи.
 func (l *Loop) Start(s screen.Screen) {
 	l.next, _ = s.NewTexture(size)
 	l.prev, _ = s.NewTexture(size)
 
-	l.stop = make(chan struct{})
-	l.stopReq = false
-
+	l.MsgQueue = messageQueue{}
+	l.stopped = make(chan struct{})
+	
 	// Запускаємо цикл подій у горутині
-	go l.eventLoop()
+	go l.eventProcess()
 }
 
-// eventLoop обробляє операції з черги повідомлень
-func (l *Loop) eventLoop() {
-	for !l.stopReq {
-		op := l.mq.pull()
-		if op == nil {
-			continue
+// eventProcess обробляє операції з черги повідомлень
+func (l *Loop) eventProcess() {
+	for {
+		if op := l.MsgQueue.Pull(); op != nil {
+			if update := op.Do(l.next); update {
+				l.Receiver.Update(l.next)
+				l.next, l.prev = l.prev, l.next
+			}
 		}
 		
-		if update := op.Do(l.next); update {
-			l.Receiver.Update(l.next)
-			l.next, l.prev = l.prev, l.next
+		if l.stopReq {
+			close(l.stopped)
+			return
 		}
 	}
-	close(l.stop)
 }
 
 // Post додає нову операцію у внутрішню чергу.
 func (l *Loop) Post(op Operation) {
-	l.mq.push(op)
+	if op != nil {
+		l.MsgQueue.Push(op)
+	}
 }
 
 // StopAndWait сигналізує про необхідність завершити цикл та блокується до моменту його повної зупинки.
@@ -65,49 +68,42 @@ func (l *Loop) StopAndWait() {
 	l.Post(OperationFunc(func(screen.Texture) {
 		l.stopReq = true
 	}))
-	<-l.stop
+	<-l.stopped
 }
 
 // messageQueue реалізує чергу повідомлень з блокуванням
 type messageQueue struct {
-	queue   []Operation
+	Queue   []Operation
 	mu      sync.Mutex
 	blocked chan struct{}
 }
 
-// push додає операцію в чергу
-func (mq *messageQueue) push(op Operation) {
-	mq.mu.Lock()
-	defer mq.mu.Unlock()
+// Push додає операцію в чергу
+func (MsgQueue *messageQueue) Push(op Operation) {
+	MsgQueue.mu.Lock()
+	defer MsgQueue.mu.Unlock()
 
-	mq.queue = append(mq.queue, op)
-	if mq.blocked != nil {
-		close(mq.blocked)
-		mq.blocked = nil
+	MsgQueue.Queue = append(MsgQueue.Queue, op)
+	if MsgQueue.blocked != nil {
+		close(MsgQueue.blocked)
+		MsgQueue.blocked = nil
 	}
 }
 
-// pull витягає наступну операцію з черги (блокуюча операція)
-func (mq *messageQueue) pull() Operation {
-	mq.mu.Lock()
-	defer mq.mu.Unlock()
+// Pull витягає наступну операцію з черги (блокуюча операція)
+func (MsgQueue *messageQueue) Pull() Operation {
+	MsgQueue.mu.Lock()
+	defer MsgQueue.mu.Unlock()
 
-	for len(mq.queue) == 0 {
-		mq.blocked = make(chan struct{})
-		mq.mu.Unlock()
-		<-mq.blocked
-		mq.mu.Lock()
+	for len(MsgQueue.Queue) == 0 {
+		MsgQueue.blocked = make(chan struct{})
+		MsgQueue.mu.Unlock()
+		<-MsgQueue.blocked
+		MsgQueue.mu.Lock()
 	}
 
-	op := mq.queue[0]
-	mq.queue[0] = nil
-	mq.queue = mq.queue[1:]
+	op := MsgQueue.Queue[0]
+	MsgQueue.Queue[0] = nil
+	MsgQueue.Queue = MsgQueue.Queue[1:]
 	return op
-}
-
-// empty перевіряє, чи порожня черга
-func (mq *messageQueue) empty() bool {
-	mq.mu.Lock()
-	defer mq.mu.Unlock()
-	return len(mq.queue) == 0
 }

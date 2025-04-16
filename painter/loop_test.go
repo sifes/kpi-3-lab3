@@ -130,26 +130,27 @@ func TestMessageQueue(t *testing.T) {
 	mq := messageQueue{}
 	
 	// Перевірка порожньої черги
-	assert.True(t, mq.empty())
+	assert.Equal(t, 0, len(mq.Queue))
 	
 	// Додавання операцій
 	op1 := OperationFunc(WhiteFill)
 	op2 := OperationFunc(GreenFill)
 	
-	mq.push(op1)
-	assert.False(t, mq.empty())
+	mq.Push(op1)
+	assert.Equal(t, 1, len(mq.Queue))
 	
-	mq.push(op2)
+	mq.Push(op2)
+	assert.Equal(t, 2, len(mq.Queue))
 	
 	// Витягування операцій
-	pulledOp1 := mq.pull()
+	pulledOp1 := mq.Pull()
 	assert.NotNil(t, pulledOp1)
 	
-	pulledOp2 := mq.pull()
+	pulledOp2 := mq.Pull()
 	assert.NotNil(t, pulledOp2)
 	
 	// Після витягування всіх операцій черга порожня
-	assert.True(t, mq.empty())
+	assert.Equal(t, 0, len(mq.Queue))
 	
 	// Перевіряємо, що операції витягнуті в правильному порядку
 	_, ok1 := pulledOp1.(OperationFunc)
