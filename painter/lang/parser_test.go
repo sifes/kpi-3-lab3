@@ -84,10 +84,10 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 				bgRect, ok := ops[1].(*painter.BgRectangle)
 				assert.True(t, ok, "Second op should be BgRectangle")
 				if ok {
-					assert.Equal(t, 40, bgRect.X1)
-					assert.Equal(t, 40, bgRect.Y1)
-					assert.Equal(t, 360, bgRect.X2)
-					assert.Equal(t, 360, bgRect.Y2)
+					assert.Equal(t, 80, bgRect.X1)
+					assert.Equal(t, 80, bgRect.Y1)
+					assert.Equal(t, 720, bgRect.X2)
+					assert.Equal(t, 720, bgRect.Y2)
 				}
 			},
 		},
@@ -105,8 +105,8 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 				figure, ok := ops[1].(*painter.Figure)
 				assert.True(t, ok, "Second op should be Figure")
 				if ok {
-					assert.Equal(t, 200, figure.X)
-					assert.Equal(t, 200, figure.Y)
+					assert.Equal(t, 400, figure.X)
+					assert.Equal(t, 400, figure.Y)
 					assert.Equal(t, color.RGBA{B: 255, A: 255}, figure.C)
 				}
 			},
@@ -126,8 +126,8 @@ func TestParser_Parse_StructCommands(t *testing.T) {
 				for _, op := range ops {
 					if move, ok := op.(*painter.Move); ok {
 						foundMove = true
-						assert.Equal(t, 40, move.X)
-						assert.Equal(t, 40, move.Y)
+						assert.Equal(t, 80, move.X)
+						assert.Equal(t, 80, move.Y)
 						break
 					}
 				}

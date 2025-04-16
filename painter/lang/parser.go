@@ -117,10 +117,10 @@ func (p *Parser) parse(commandLine string) error {
 
 		// Конвертуємо нормалізовані координати у пікселі
 		p.lastBgRect = &painter.BgRectangle{
-			X1: int(x1 * 400),
-			Y1: int(y1 * 400),
-			X2: int(x2 * 400),
-			Y2: int(y2 * 400),
+			X1: int(x1 * 800),
+			Y1: int(y1 * 800),
+			X2: int(x2 * 800),
+			Y2: int(y2 * 800),
 		}
 	case "figure":
 		if len(args) != 2 {
@@ -135,8 +135,8 @@ func (p *Parser) parse(commandLine string) error {
 
 		// Конвертуємо нормалізовані координати у пікселі
 		fig := &painter.Figure{
-			X: int(x * 400),
-			Y: int(y * 400),
+			X: int(x * 800),
+			Y: int(y * 800),
 			C: color.RGBA{B: 255, A: 255},
 		}
 		p.figures = append(p.figures, fig)
@@ -153,8 +153,8 @@ func (p *Parser) parse(commandLine string) error {
 
 		// Конвертуємо нормалізовані координати у пікселі
 		moveOp := &painter.Move{
-			X:       int(x * 400),
-			Y:       int(y * 400),
+			X:       int(x * 800),
+			Y:       int(y * 800),
 			Figures: p.figures,
 		}
 		p.moveOps = append(p.moveOps, moveOp)
